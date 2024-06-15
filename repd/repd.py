@@ -1,0 +1,85 @@
+import argparse
+import os
+import requests
+import zipfile
+from urllib.parse import urlparse, urljoin
+from pathlib import Path
+import json
+
+# Constants
+DEFAULT_DOWNLOAD_DIR = Path.home() / 'Downloads'
+REPOS_URL = 'https://kin1009.github.io/files/repos.json'
+
+def get_github_repo_url(description):
+    response = requests.get(REPOS_URL)
+    response.raise_for_status()
+    
+    data = response.json()
+    
+    if description in data:
+        #print(data[description])
+        return data[description]
+    else:
+        raise ValueError(f"Description '{description}' not found in repository data.")
+
+def download_repo(repo_url, dest_dir):
+    print(repo_url)
+    #parsed_url = urlparse(repo_url)
+    #repo_name = os.path.basename(parsed_url.path).replace(".git", "")
+    zip_url = repo_url + ("/" if repo_url[-1] != "/" else "") + "archive/refs/heads/main.zip"
+    
+    print(f"Downloading {zip_url}...")
+    response = requests.get(zip_url, stream=True)
+    response.raise_for_status()
+    
+    zip_path = dest_dir / f"{repo_url.split("/")[-1]}.zip"
+    with open(zip_path, 'wb') as zip_file:
+        for chunk in response.iter_content(chunk_size=8192):
+            zip_file.write(chunk)
+    
+    print(f"Downloaded to {zip_path}")
+    return zip_path
+
+def unpack_zip(zip_path, dest_dir):
+    print(f"Unpacking {zip_path} to {dest_dir}...")
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(dest_dir)
+    os.remove(zip_path)
+    print("Unpacked successfully.")
+
+def main():
+    print("repd version 1.0, contact for adding a program or help is: khoi.nguyenminh100912@gmail.com")
+    parser = argparse.ArgumentParser(description='Download and unpack GitHub repository.')
+    parser.add_argument('--name', help='Description of the GitHub repository to download.')
+    parser.add_argument('--where', type=Path, default=DEFAULT_DOWNLOAD_DIR, help='Destination folder to place the downloaded file.')
+    parser.add_argument('--unpack', action='store_true', help='Unpack the ZIP file if specified.')
+    parser.add_argument('--packages', action='store_true', help="List packages created.")
+
+    args = parser.parse_args()
+
+    # Ensure the destination directory exists
+    args.where.mkdir(parents=True, exist_ok=True)
+    if not args.packages:
+        if args.name:
+            try:
+                repo_url = get_github_repo_url(args.name)
+                zip_path = download_repo(repo_url, args.where)
+
+                if args.unpack:
+                    unpack_dir = args.where / zip_path.stem
+                    unpack_dir.mkdir(parents=True, exist_ok=True)
+                    unpack_zip(zip_path, unpack_dir)
+            except Exception as e:
+                print(f"Error: {e}")
+        else:
+            print("Error: No package name.")
+    else:
+        response = requests.get(REPOS_URL)
+        response.raise_for_status()
+    
+        data = response.json()  
+        for i in data:
+            print(i)    
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,8 @@
+Package: repd
+Version: 1.0
+Section: base
+Priority: optional
+Architecture: all
+Depends: python3
+Maintainer: Kin <khoi.nguyenminh100912@gmail.com>
+Description: Download GitHub repos without having to type the full name.
